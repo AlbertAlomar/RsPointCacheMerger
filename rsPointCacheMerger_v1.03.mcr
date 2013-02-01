@@ -813,18 +813,44 @@ icon:#("Particles",3)
 			_DelTmpFiles = chkDelTmpPc2.value
 			_DisableUndo = chkDisableUndo.value
 			
+			_ChkError = false
+			--checks the objects names in scene to find duplicates
 			_CheckObj = CheckObjList objsToBake _File
+			--chequea los permisos de escritura
+			_PrevMergedNode = getnodebyname _File
+			--chequea los permisos de escritura
+			_TestPath = CheckFilePath _File _Path
+
+			if _CheckObj == true then 
+			(
+				_qtext2 = "Make sure all the selected objects still exists in the scene, have an unique name and any of them is called <" + _File + ">."
+				MessageBox _qtext2 title:"Rs PointCache Merger"
+				_ChkError = true
+			)
+
+			if PrevMergedNode == undefined and _ChkError = false then
+			(
+				_TestPath = CheckFilePath _File _Path --chequea los permisos de escritura
+				if _TestPath == false do MergeAniMesh objsToBake _frameStart _frameEnd _SampleRate _File _Path _DelTmpFiles _DisableUndo --realiza el mergeado
+				_ChkError = true
+			)
+
+
+
+
+
 			if _CheckObj == false then
 			(
-				PrevMergedNode = getnodebyname _File
 				if PrevMergedNode != undefined then
 				(
 					_qtext1 = "The Object < " + _File + " > already exists in the scene\n ¿Do you want to overwrite it?"
 					if (queryBox _qtext1 title:"Rs PointCache Merger") do --solicita permiso para sobreescribir el nodo preexistente
 					(
 					delete PrevMergedNode
-					_TestPath = CheckFilePath _File _Path --chequea los permisos de escritura
-					if _TestPath == false do MergeAniMesh objsToBake _frameStart _frameEnd _SampleRate _File _Path --realiza el mergeado
+					--chequea los permisos de escritura
+					if _TestPath == false do 
+
+					MergeAniMesh objsToBake _frameStart _frameEnd _SampleRate _File _Path _DelTmpFiles _DisableUndo --realiza el mergeado
 					)
 				)
 				else
@@ -833,11 +859,8 @@ icon:#("Particles",3)
 					if _TestPath == false do MergeAniMesh objsToBake _frameStart _frameEnd _SampleRate _File _Path _DelTmpFiles _DisableUndo --realiza el mergeado
 				)
 			)
-			else
-			(
-				_qtext2 = "Make sure all the selected objects still exists in the scene, have an unique name and any of them is called <" + _File + ">."
-				MessageBox _qtext2 title:"Rs PointCache Merger"
-			)
+
+
 		)
 		
 		
