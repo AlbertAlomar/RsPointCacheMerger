@@ -640,16 +640,27 @@ icon:#("Particles",3)
 				if getCommandPanelTaskMode() == #modify then max create mode --Quita el foco del panel de Modificar y lo pasa a Crear. Evita algun bug en algunos sistemas.
 				
 				MergedMesh ObjList PC2File --Builds the mesh
+
+				-- Progress Bar Setup variables
+				progressStart "Creating individual PC2 Files"
+				escapeEnable = true
 				
 				-- guarda un PC2 de cada objeto y crea la lista de archivos PC2
 				_PC2List = #()
+				i = 0
 				for o in ObjList do
 				(
+					i += 1
 					--_currFilename = GetDir #maxstart + "\\" + o.name + "_" + (o.inode.handle as string) + ".pc2"
 					_currFilename = PC2Path + "\\" + PC2File + "-" + o.name + "_" + (o.inode.handle as string) + ".pc2"
 					PC2record o _currfilename Start End SampleRate
 					append _PC2List _currFilename
+
+					--rellena el porcentaje
+					if not (progressUpdate ((i as float / ObjList.count as float) * 100.0)) then exit
 				)-- for
+
+				progressEnd()
 				
 				_MergedFilename = PC2Path + "\\" + PC2File + ".pc2"
 				PC2merger _PC2List _MergedFilename --Mergea la lista de PointCaches en uno nuevo
@@ -836,8 +847,6 @@ icon:#("Particles",3)
 				_ChkError = true
 			)
 
-			--_test= ( _PrevMergedNode as string + "   ---   " + _ChkError as string )
-			--MessageBox _test title:"Rs PointCache Merger"
 			if _PrevMergedNode != undefined and _ChkError == false do
 			(
 				_qtext3 = "This object already exists:\n< " + _File + " >\nDo you want to replace it?"
