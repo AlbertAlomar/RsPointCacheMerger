@@ -346,7 +346,7 @@ icon:#("Particles",3)
 		-------------------------------------------------------------------------
 		fn updateUI =
 		(
-			btnBakeAnimation.enabled = btnClearList.enabled = btnDelObjFromList.enabled = spnFrameRangeStart.enabled = spnFrameRangeEnd.enabled = btnRefreshRange.enabled = spnSampleRate.enabled = edtFileEditText.enabled = edtPathEditText.enabled = btnSelectPathButton.enabled = lbxObjsToBake.items.count != 0
+			btnBakeAnimation.enabled = btnClearList.enabled = btnDelObjFromList.enabled = spnFrameRangeStart.enabled = spnFrameRangeEnd.enabled = btnRefreshRange.enabled = spnSampleRate.enabled = edtFileEditText.enabled = edtPathEditText.enabled = btnSelectPathButton.enabled = chkDelTmpPc2.enabled = chkDisableUndo.enabled = lbxObjsToBake.items.count != 0
 		)--updateUI
 		
 		
@@ -405,7 +405,7 @@ icon:#("Particles",3)
 				if (getfiles _OutputName).count != 0 then 
 				(
 					-- Si existe, pregunta al usuario si quiere sobreescribir
-					qtext = "The File < " + _OutputName + " > already exists\n ¿Do you want to overwrite it?"
+					qtext = "This file already exists\n< " + _OutputName + " >\n ¿Do you want to overwrite it?"
 					if not (queryBox qtext title:"Rs PointCache Merger") do _Error = True
 				)
 				else
@@ -633,39 +633,34 @@ icon:#("Particles",3)
 		--	End: fin de rango de animación
 		--	SampleRate: numero de samples por frame
 		-------------------------------------------------------------------------
-		fn MergeAniMesh ObjList Start End SampleRate PC2File PC2Path _DelTmpFiles _DisableUndo = 
+		fn MergeAniMesh ObjList Start End SampleRate PC2File PC2Path DelTmpFiles = 
 		(
-			--undo "RsPointCacheMerger" on
+			try
 			(
-				try
+				if getCommandPanelTaskMode() == #modify then max create mode --Quita el foco del panel de Modificar y lo pasa a Crear. Evita algun bug en algunos sistemas.
+				
+				MergedMesh ObjList PC2File --Builds the mesh
+				
+				-- guarda un PC2 de cada objeto y crea la lista de archivos PC2
+				_PC2List = #()
+				for o in ObjList do
 				(
-					if getCommandPanelTaskMode() == #modify then max create mode --Quita el foco del panel de Modificar y lo pasa a Crear. Evita algun bug en algunos sistemas.
-					
-					MergedMesh ObjList PC2File --Crea la mesh
-					
-					-- guarda un PC2 de cada objeto y crea la lista de archivos PC2
-					_PC2List = #()
-					for o in ObjList do
-					(
-						--_currFilename = GetDir #maxstart + "\\" + o.name + "_" + (o.inode.handle as string) + ".pc2"
-						_currFilename = PC2Path + "\\" + PC2File + "-" + o.name + "_" + (o.inode.handle as string) + ".pc2"
-						PC2record o _currfilename Start End SampleRate
-						append _PC2List _currFilename
-					)-- for
-					
-					--_MergedFilename = GetDir #maxstart + "\\MergeAniMesh.pc2"
-					_MergedFilename = PC2Path + "\\" + PC2File + ".pc2"
-					PC2merger _PC2List _MergedFilename --Mergea la lista de PointCaches en uno nuevo
-					
-					_MAMnode = getNodeByName PC2File
-					addModifier _MAMnode (Point_Cache ())
-					_MAMnode.modifiers[#Point_Cache].filename = _MergedFilename
-					
-					select _MAMnode
-				)
-				catch( MessageBox "Some unexpected error was found, you may want to Undo." title:"Rs PointCache Merger" )
+					--_currFilename = GetDir #maxstart + "\\" + o.name + "_" + (o.inode.handle as string) + ".pc2"
+					_currFilename = PC2Path + "\\" + PC2File + "-" + o.name + "_" + (o.inode.handle as string) + ".pc2"
+					PC2record o _currfilename Start End SampleRate
+					append _PC2List _currFilename
+				)-- for
+				
+				_MergedFilename = PC2Path + "\\" + PC2File + ".pc2"
+				PC2merger _PC2List _MergedFilename --Mergea la lista de PointCaches en uno nuevo
+				
+				_MAMnode = getNodeByName PC2File
+				addModifier _MAMnode (Point_Cache ())
+				_MAMnode.modifiers[#Point_Cache].filename = _MergedFilename
+				
+				select _MAMnode
 			)
-			
+			catch( MessageBox "Some unexpected error was found, you may want\n Undo or revert to a previous Saved file." title:"Rs PointCache Merger" )
 		)
 		
 		
@@ -697,7 +692,7 @@ icon:#("Particles",3)
 			if _DupeIndex != 0 do
 			(
 				deleteitem _objsToBakeNames _DupeIndex
-				_qtext1 = "Make sure any of the selected objects is called <" + _File + "> because that's the name that will have the new compund mesh."
+				_qtext1 = "Make sure any of the selected objects is called <" + _File + "> because that's the name that will have the new compound mesh."
 				MessageBox _qtext1 title:"Rs PointCache Merger"
 			)
 				
@@ -796,7 +791,7 @@ icon:#("Particles",3)
 					)
 				catch ()
 					
-				if PathFolder != undefined then edtPathEditText.text = PathFolder
+				if PathFolder != undefined do edtPathEditText.text = PathFolder
 			)
 
 
@@ -810,60 +805,68 @@ icon:#("Particles",3)
 			_SampleRate = spnSampleRate.value as float
 			_File = edtFileEditText.text
 			_Path = edtPathEditText.text
-			_DelTmpFiles = chkDelTmpPc2.value
-			_DisableUndo = chkDisableUndo.value
-			
+			_DelTmpFiles = chkDelTmpPc2.checked
+			_DisableUndo = chkDisableUndo.checked
 			_ChkError = false
-			--checks the objects names in scene to find duplicates
-			_CheckObj = CheckObjList objsToBake _File
-			--chequea los permisos de escritura
-			_PrevMergedNode = getnodebyname _File
-			--chequea los permisos de escritura
-			_TestPath = CheckFilePath _File _Path
+			_TestPath = true
 
-			if _CheckObj == true then 
+			--checks the number of objects to merge. If it's too large prompts to disable undo.
+			if not _DisableUndo and objsToBake.count > 100 do
 			(
-				_qtext2 = "Make sure all the selected objects still exists in the scene, have an unique name and any of them is called <" + _File + ">."
+				_qtext0 = "To merge a high number of objects (>100)\n it's higly recommended to disable Undo and save\nbefore running the script."
+				MessageBox _qtext0 title:"Rs PointCache Merger"
+				_ChkError = true
+			)
+
+			if _DisableUndo do
+			(
+				_qtext1 = "Undo is disabled. Please make sure to have a recent save or hold.\nDo you want to continue anyway?"
+				if not ( queryBox _qtext1 title:"Rs PointCache Merger" ) do ( _ChkError = true )
+			)
+
+			--checks the names in the list to find duplicates or missing objects in the scene
+			_CheckObj = CheckObjList objsToBake _File
+			--checks the existence of any object with the same name of new merged object
+			_PrevMergedNode = getnodebyname _File
+
+			if _CheckObj == true do 
+			(
+				_qtext2 = "Make sure all the selected objects still exists in the scene and have an unique name"
 				MessageBox _qtext2 title:"Rs PointCache Merger"
 				_ChkError = true
 			)
 
-			if PrevMergedNode == undefined and _ChkError = false then
+			--_test= ( _PrevMergedNode as string + "   ---   " + _ChkError as string )
+			--MessageBox _test title:"Rs PointCache Merger"
+			if _PrevMergedNode != undefined and _ChkError == false do
 			(
-				_TestPath = CheckFilePath _File _Path --chequea los permisos de escritura
-				if _TestPath == false do MergeAniMesh objsToBake _frameStart _frameEnd _SampleRate _File _Path _DelTmpFiles _DisableUndo --realiza el mergeado
-				_ChkError = true
+				_qtext3 = "This object already exists:\n< " + _File + " >\nDo you want to replace it?"
+				-- asks permision to overrite the old node
+				if ( queryBox _qtext3 title:"Rs PointCache Merger" ) then ( delete _PrevMergedNode )
+				else 
+				(
+					_qtext4 = "Delete or change the name of the object <" + _File + "> to be able to run the script."
+					MessageBox _qtext4 title:"Rs PointCache Merger"
+					_ChkError = true
+				)
 			)
 
-
-
-
-
-			if _CheckObj == false then
+			--checks the writting rights to disk
+			if _ChkError == false do _TestPath = CheckFilePath _File _Path
+			if _TestPath == false do 
 			(
-				if PrevMergedNode != undefined then
-				(
-					_qtext1 = "The Object < " + _File + " > already exists in the scene\n ¿Do you want to overwrite it?"
-					if (queryBox _qtext1 title:"Rs PointCache Merger") do --solicita permiso para sobreescribir el nodo preexistente
-					(
-					delete PrevMergedNode
-					--chequea los permisos de escritura
-					if _TestPath == false do 
-
-					MergeAniMesh objsToBake _frameStart _frameEnd _SampleRate _File _Path _DelTmpFiles _DisableUndo --realiza el mergeado
-					)
-				)
+				if _DisableUndo then ( MergeAniMesh objsToBake _frameStart _frameEnd _SampleRate _File _Path _DelTmpFiles ) --Does the Merge
 				else
 				(
-					_TestPath = CheckFilePath _File _Path --chequea los permisos de escritura
-					if _TestPath == false do MergeAniMesh objsToBake _frameStart _frameEnd _SampleRate _File _Path _DelTmpFiles _DisableUndo --realiza el mergeado
+					undo "RsPointCacheMerger" on
+					(
+						MergeAniMesh objsToBake _frameStart _frameEnd _SampleRate _File _Path _DelTmpFiles --Does the Merge
+					)
 				)
-			)
-
-
+			)	
 		)
 		
-		
+		 
 		-------------------------------------------------------------------------
 		-- Help
 		-----------------------------------------------------------------------
@@ -905,12 +908,16 @@ icon:#("Particles",3)
 			_SRate = (getINISetting ((getDir #maxstart) + "\\rollPointCacheMerger.ini") "Time" "Sample")
 			_FName = (getINISetting ((getDir #maxstart) + "\\rollPointCacheMerger.ini") "Path" "File")
 			_Path = (getINISetting ((getDir #maxstart) + "\\rollPointCacheMerger.ini") "Path" "Folder")
+			_DelTmpFiles = (getINISetting ((getDir #maxstart) + "\\rollPointCacheMerger.ini") "Option" "DelTmp")
+			_DisableUndo = (getINISetting ((getDir #maxstart) + "\\rollPointCacheMerger.ini") "Option" "DisUndo")
 			
 			if _FrStart == "" then spnFrameRangeStart.value = animationrange.start else spnFrameRangeStart.value = _FrStart as integer
 			if _FrEnd == "" then spnFrameRangeEnd.value = animationrange.end else spnFrameRangeEnd.value = _FrEnd as integer
 			if _SRate == "" then spnSampleRate.value = 1 as float else spnSampleRate.value = _SRate as float
 			if _FName == "" then edtFileEditText.text = "PC2Merge" else edtFileEditText.text = _FName
 			if _Path == "" then edtPathEditText.text = (getDir #export) else edtPathEditText.text = _Path
+			if _DelTmpFiles == "" then chkDelTmpPc2.checked = true else chkDelTmpPc2.checked = _DelTmpFiles as booleanClass
+			if _DisableUndo == "" then chkDisableUndo.checked = false else chkDisableUndo.checked = _DisableUndo as booleanClass
 			
 			updateUI() --refresca el estado del interface
 		)
@@ -928,7 +935,10 @@ icon:#("Particles",3)
 			setINISetting ((getDir #maxstart) + "\\rollPointCacheMerger.ini") "Time" "Sample" (spnSampleRate.value as string)
 			setINISetting ((getDir #maxstart) + "\\rollPointCacheMerger.ini") "Path" "File" (edtFileEditText.text)
 			setINISetting ((getDir #maxstart) + "\\rollPointCacheMerger.ini") "Path" "Folder" (edtPathEditText.text)
-			
+			setINISetting ((getDir #maxstart) + "\\rollPointCacheMerger.ini") "Option" "DelTmp" (chkDelTmpPc2.checked as string)
+			setINISetting ((getDir #maxstart) + "\\rollPointCacheMerger.ini") "Option" "DisUndo" (chkDisableUndo.checked as string)
+
+
 			rolloutOpen = false
 			updateToolbarButtons()
 		)
