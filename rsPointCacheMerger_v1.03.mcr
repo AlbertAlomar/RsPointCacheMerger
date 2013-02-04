@@ -665,6 +665,11 @@ icon:#("Particles",3)
 				_MergedFilename = PC2Path + "\\" + PC2File + ".pc2"
 				PC2merger _PC2List _MergedFilename --Mergea la lista de PointCaches en uno nuevo
 				
+				if DelTmpFiles do
+				(
+					for f in _PC2List do deleteFile f
+				)
+
 				_MAMnode = getNodeByName PC2File
 				addModifier _MAMnode (Point_Cache ())
 				_MAMnode.modifiers[#Point_Cache].filename = _MergedFilename
@@ -822,9 +827,9 @@ icon:#("Particles",3)
 			_TestPath = true
 
 			--checks the number of objects to merge. If it's too large prompts to disable undo.
-			if not _DisableUndo and objsToBake.count > 100 do
+			if not _DisableUndo and objsToBake.count > 200 do
 			(
-				_qtext0 = "To merge a high number of objects (>100)\n it's higly recommended to disable Undo and save\nbefore running the script."
+				_qtext0 = "To merge a high number of objects (>200)\n you must disable Undo and it's recommended\nto save before running the script."
 				MessageBox _qtext0 title:"Rs PointCache Merger"
 				_ChkError = true
 			)
