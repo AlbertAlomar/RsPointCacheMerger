@@ -676,7 +676,7 @@ icon:#("Particles",3)
 		-------------------------------------------------------------------------
 		fn MergeAniMesh ObjList fStart fEnd SampleRate PC2File PC2Path DelTmpFiles = 
 		(
-			try
+			--try
 			(
 				if getCommandPanelTaskMode() == #modify then max create mode --Quita el foco del panel de Modificar y lo pasa a Crear. Evita algun bug en algunos sistemas.
 				
@@ -723,7 +723,7 @@ icon:#("Particles",3)
 				
 				select _MAMnode
 			)
-			catch( MessageBox "Some unexpected error was found, you may want\n Undo or revert to a previous Saved file." title:"Rs PointCache Merger" )
+			--catch( MessageBox "Some unexpected error was found, you may want\n Undo or revert to a previous Saved file." title:"Rs PointCache Merger" )
 		)
 		
 		
