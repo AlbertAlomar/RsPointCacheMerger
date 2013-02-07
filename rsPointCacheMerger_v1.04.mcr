@@ -10,10 +10,10 @@ icon:#("Particles",3)
 		-- Main concept and code by Albert Alomar
 		-- a.alomar@recubo.biz ( www.recubo.biz )
 		-- MaxScript Template, tips and coaching by Eduardo Serna
-		-- version 1.03
+		-- version 1.04
 		-- Created On: 08/09/2011
-		-- Modified On: 19/12/2011
-		-- tested using Max 2012 x64
+		-- Modified On: 07/02/2013
+		-- tested on Max 2012 x64 and Max 2013 x64
 		---------------------------------------------------------------------------------------------------------------	
 
 		---------------------------------------------------------------------------------------------------------------	
@@ -23,13 +23,13 @@ icon:#("Particles",3)
 		-- 2) Bakes each objects animations into PC2 files.
 		-- 3) Takes each PC2 file and duplicates all the vertex-baked 
 		--      movement into a new PC2 file.
-		-- 4) Finally applies a PointCache2 modifier to the new compound mesh and
+		-- 4) Applies a PointCache2 modifier to the new compound mesh and
 		--      loads the new merged file that contains all the vertex movements.
 		---------------------------------------------------------------------------------------------------------------	
 
 		---------------------------------------------------------------------------------------------------------------	
 		-- To Do:
-		-- Add option to merge already created PC2 files
+		-- Try to avoid the creation of aditional keys on the original obj if there is already one there (at start & end)
 		---------------------------------------------------------------------------------------------------------------	
 
 		---------------------------------------------------------------------------------------------------------------	
@@ -50,6 +50,15 @@ icon:#("Particles",3)
 		-- 1.02 Changelog: (19/12/2011)
 		-- 		· Now before the execution the focus is removed from the "Modify" Panel to prevent a weird behaviour in some systems when a lot of objects are going to be attached.
 		-- 		· Improved the attaching method, now does not need to convert the mesh to poly. In some meshes that could change the topology and then make the script to fail.
+		-- 1.03 Changelog: (01/02/2013)
+		--
+		--
+		--
+		-- 1.04 Changelog: (07/02/2013)
+		--
+		--
+		--
+		--
 		---------------------------------------------------------------------------------------------------------------	
 
 		---------------------------------------------------------------------------------------------------------------	
@@ -59,7 +68,7 @@ icon:#("Particles",3)
 		--
 		-- What this license means is that I give you this script for free and let you use it or 
 		-- any part of its source code in your personal and comercial projects, BUT
-		-- if you do you must mention me ( Albert Alomar Juan ) and my website ( www.recubo.biz ).
+		-- if you USE it you MUST mention me ( Albert Alomar Juan ) and my website ( www.recubo.biz ).
 		---------------------------------------------------------------------------------------------------------------	
 	)
 
@@ -489,7 +498,22 @@ icon:#("Particles",3)
 			return _Error
 		)
 		
-		
+
+
+		-------------------------------------------------------------------------
+		-- A key at the first and last frame is needed to force the PC2 file record the whole frame range selected
+		-- If not it'll begin the record where the first key appears and/or end with the last, and this will crash the fn PC2merger
+		-------------------------------------------------------------------------
+		fn AddStartEndKeys ObjList fStart fEnd =
+		(
+			select Objlist
+			sliderTime = (fStart as time)
+			max set key keys
+			sliderTime = (fEnd as time)
+			max set key keys
+		)
+
+
 		
 		-------------------------------------------------------------------------
 		-- Guarda un PointCache2 WSM de un objeto
@@ -501,14 +525,6 @@ icon:#("Particles",3)
 		-------------------------------------------------------------------------
 		fn PC2record Obj Filename Start End SampleRate =
 		(
-			-- A key at the first and last frame is needed to force the PC2 file record the whole frame range selected
-			-- If not it'll begin the record where the first key appears and/or end with the last, and this will crash the fn PC2merger
-			select Obj
-			sliderTime = (Start as time)
-			max set key keys
-			sliderTime = (End as time)
-			max set key keys
-
 			addModifier Obj (Point_CacheSpacewarpModifier ())
 			PCnode = Obj.modifiers[#Point_Cache_Binding]
 			PCnode.filename = Filename
@@ -520,6 +536,7 @@ icon:#("Particles",3)
 		)
 		
 		
+
 		-------------------------------------------------------------------------
 		-- Mergea una lista de objetos en una mesh con el pivot en el origen de coordenadas
 		-------------------------------------------------------------------------
@@ -547,6 +564,7 @@ icon:#("Particles",3)
 			_NewMesh.name = PC2File
 		)
 		
+
 		
 		-------------------------------------------------------------------------
 		-- Mergea una lista de archivos Pointcaches2 en un solo PC2
@@ -688,10 +706,18 @@ icon:#("Particles",3)
 		-------------------------------------------------------------------------
 		fn MergeAniMesh ObjList fStart fEnd SampleRate PC2File PC2Path DelTmpFiles = 
 		(
+			--remember slider time
+			remembertime = sliderTime
+
+			-- Viewport optimization
+			disableSceneRedraw()
+			if getCommandPanelTaskMode() == #modify then max create mode
+
+			-- Fix animation start-end frames to prevent PC2 record to fail
+			AddStartEndKeys ObjList fStart fEnd
+
 			try
 			(
-				if getCommandPanelTaskMode() == #modify then max create mode --Quita el foco del panel de Modificar y lo pasa a Crear. Evita algun bug en algunos sistemas.
-				
 				MergedMesh ObjList PC2File --Builds the mesh
 
 				-- Progress Bar Setup variables
@@ -736,6 +762,12 @@ icon:#("Particles",3)
 				select _MAMnode
 			)
 			catch( MessageBox "Some unexpected error was found, you may want\n Undo or revert to a previous Saved file." title:"Rs PointCache Merger" )
+		
+			sliderTime = remembertime
+
+			enableSceneRedraw()
+			completeRedraw()
+
 		)
 		
 		
