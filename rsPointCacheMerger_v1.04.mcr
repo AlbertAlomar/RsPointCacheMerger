@@ -501,6 +501,14 @@ icon:#("Particles",3)
 		-------------------------------------------------------------------------
 		fn PC2record Obj Filename Start End SampleRate =
 		(
+			-- A key at the first and last frame is needed to force the PC2 file record the whole frame range selected
+			-- If not it'll begin the record where the first key appears and/or end with the last, and this will crash the fn PC2merger
+			select Obj
+			sliderTime = (Start as time)
+			max set key keys
+			sliderTime = (End as time)
+			max set key keys
+
 			addModifier Obj (Point_CacheSpacewarpModifier ())
 			PCnode = Obj.modifiers[#Point_Cache_Binding]
 			PCnode.filename = Filename
@@ -569,29 +577,33 @@ icon:#("Particles",3)
 			
 			--leer los parametros de los otros headers a mergear para ver su compatibilidad y extraer datos
 			_FileError = False
-			For i = 2 to PC2Listfn.count do
-			(	
-				-- Lectura del Header del Obj[i]
-				i_fStream = fOpen PC2Listfn[i] "rb"
-				if ((ReadString i_fStream) != "POINTCACHE2") do _FileError = true
-				if ((ReadLong i_fStream) != 1 ) do _FileError = true
-				_NumPoints_i = ReadLong i_fStream
-				_Start_i = ReadFloat i_fStream
-				_SampleRate_i = ReadFloat i_fStream
-				_Evaluations_i = ReadLong i_fStream
-				-- 	Set m_lastTime based on header
-				_End_i = (_Start_i + ((_Evaluations_i-1) * _SampleRate_i)) as time
-				
-				-- comprueba la compatibilidad
-				if (_Start_A != _Start_i) or (_SampleRate_A != _SampleRate_i) or (_Evaluations_A != _Evaluations_i) do
-				(
-					_FileError = true
-					MessageBox "All the PC2 files to be merged must have the same Evaluations, Sample Rate and Start/End." Title:"File Error"
+			if PC2Listfn.count > 1 do
+			(
+				For i = 2 to PC2Listfn.count do
+				(	
+					-- Lectura del Header del Obj[i]
+					i_fStream = fOpen PC2Listfn[i] "rb"
+					if ((ReadString i_fStream) != "POINTCACHE2") do _FileError = true
+					if ((ReadLong i_fStream) != 1 ) do _FileError = true
+					_NumPoints_i = ReadLong i_fStream
+					_Start_i = ReadFloat i_fStream
+					_SampleRate_i = ReadFloat i_fStream
+					_Evaluations_i = ReadLong i_fStream
+					-- 	Set m_lastTime based on header
+					_End_i = (_Start_i + ((_Evaluations_i-1) * _SampleRate_i)) as time
+					
+					-- comprueba la compatibilidad
+					if (_Start_A != _Start_i) or (_SampleRate_A != _SampleRate_i) or (_Evaluations_A != _Evaluations_i) do
+					(
+						_FileError = true
+						MessageBox "All the PC2 files to be merged must have the same Evaluations, Sample Rate and Start/End." Title:"File Error"
+					)
+					
+					append _NumPointsArray _NumPoints_i -- añade los vertices de cada cache
+					fClose i_fStream --cierra el archivo
 				)
-				
-				append _NumPointsArray _NumPoints_i -- añade los vertices de cada cache
-				fClose i_fStream --cierra el archivo
 			)
+			
 			
 			if not _FileError do
 			(
@@ -676,7 +688,7 @@ icon:#("Particles",3)
 		-------------------------------------------------------------------------
 		fn MergeAniMesh ObjList fStart fEnd SampleRate PC2File PC2Path DelTmpFiles = 
 		(
-			--try
+			try
 			(
 				if getCommandPanelTaskMode() == #modify then max create mode --Quita el foco del panel de Modificar y lo pasa a Crear. Evita algun bug en algunos sistemas.
 				
@@ -723,7 +735,7 @@ icon:#("Particles",3)
 				
 				select _MAMnode
 			)
-			--catch( MessageBox "Some unexpected error was found, you may want\n Undo or revert to a previous Saved file." title:"Rs PointCache Merger" )
+			catch( MessageBox "Some unexpected error was found, you may want\n Undo or revert to a previous Saved file." title:"Rs PointCache Merger" )
 		)
 		
 		
