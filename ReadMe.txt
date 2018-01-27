@@ -2,7 +2,7 @@
 	-- General Info:
 	-- rsPointCacheMerger.mcr
 	-- Main concept and code by Albert Alomar
-	-- a.alomar@recubo.biz ( www.recubo.biz )
+	-- albert.alomar@gmail.com
 	-- MaxScript Template, tips and coaching by Eduardo Serna
 	-- version 1.02
 	-- Created On: 08/09/2011
